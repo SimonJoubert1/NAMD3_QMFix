@@ -1,0 +1,287 @@
+# This file is a template, and might need editing before it works on your project.
+# use the official gcc image, based on debian
+# can use verions as well, like gcc:5.2
+# see https://hub.docker.com/_/gcc/
+#image: gcc
+
+
+# .only-local: &only-local
+#   only:
+#     - master
+#     - devel
+#     - merge_request
+    
+# .only-remote: &only-remote
+#   except:
+#     - master
+#     - devel
+
+.only-all: &only-all
+  only:
+    - branches
+    - merge_requests
+    
+  except:
+    refs:
+      - master
+      - devel
+
+
+.only-merge-requests: &only-merge-requests
+  only:
+    - merge_requests
+  except:
+    changes:
+      - /*.txt
+      - /*.md
+      - ug/*
+
+        
+
+#### build_shated and test_shared will be executed when someone is working on 
+#### their own branch, before performing a merge request. This build and
+#### and test is just a simple evaluation that the changes doesn't break the 
+#### multi-core build, and a simple CPU simulation can be executed.
+#### Whenever a merge request is submitted, the local builds and tests are 
+#### executed, exercising more code paths and simulations modalities. This way
+#### people can push as much as they want without filling our local queu.
+
+#######################    Remote Testing      #################################
+
+# build_shared_multicore:
+#   # execute this job always, no matter if it is a push or a merge request
+# #   <<: *only-remote
+#   stage: build
+#   image: gcc
+  
+#   before_script:
+#     - git clone https://gitlab-ci-token:${BUILD_USER_TOKEN}@gitlab.com/tcbgUIUC/charm.git
+#     - echo ${BUILD_USER_TOKEN}
+#     - tar xzf charm/charm-6.8.2.tar.gz
+#     - tar xzf charm/tcl.tar.gz
+#     - tar xzf charm/fftw.tar.gz
+#     - ls
+    
+#     - export TCLINC=${PWD}/tcl/tcl8.5.9-linux-x86_64/lib/
+#     - export TCLLIB=${PWD}/tcl/tcl8.5.9-linux-x86_64/include/
+#     - export LD_LIBRARY_PATH=${PWD}/tcl/tcl8.5.9-linux-x86_64/include/:$LD_LIBRARY_PATH
+#     - export TCLDIR=${PWD}/tcl/tcl8.5.9-linux-x86_64
+#     - export CHRMDIR=${PWD}/charm-6.8.2
+#     - export FFTWDIR=${PWD}/fftw/linux-x86_64
+#   script:
+#     - echo "after script"
+#     - ./config Linux-x86_64-g++ --tcl-prefix $TCLDIR --charm-base $CHRMDIR --fftw-prefix ${FFTWDIR}
+#     - cd Linux-x86_64-g++
+#     - make
+   
+#   artifacts:
+#     paths:
+#       - Linux-x86_64-g++
+      
+# test_shared_multicore:
+#   # execute this job always, no matter if it is a push or a merge request
+# #   <<: *only-remote
+#   stage: test
+#   image: gcc
+
+#   script:
+#     - echo "test"
+#     - cd Linux-x86_64-g++
+#     - ./namd3 src/alanin > alanin_cuda.log
+#   dependencies:
+#     - build_shared_multicore
+#   artifacts:
+#     paths:
+#       - Linux-x86_64-g++
+
+
+# build_shared_memopt:
+#   # execute this job always, no matter if it is a push or a merge request
+# #   <<: *only-remote
+#   stage: build
+#   image: gcc
+  
+#   before_script:
+#     - git clone https://gitlab-ci-token:${BUILD_USER_TOKEN}@gitlab.com/tcbgUIUC/charm.git
+#     - echo ${BUILD_USER_TOKEN}
+#     - tar xzf charm/charm-6.8.2.tar.gz
+#     - tar xzf charm/tcl.tar.gz
+#     - tar xzf charm/fftw.tar.gz
+#     - ls
+    
+#     - export TCLINC=${PWD}/tcl/tcl8.5.9-linux-x86_64/lib/
+#     - export TCLLIB=${PWD}/tcl/tcl8.5.9-linux-x86_64/include/
+#     - export LD_LIBRARY_PATH=${PWD}/tcl/tcl8.5.9-linux-x86_64/include/:$LD_LIBRARY_PATH
+#     - export TCLDIR=${PWD}/tcl/tcl8.5.9-linux-x86_64
+#     - export CHRMDIR=${PWD}/charm-6.8.2
+#     - export FFTWDIR=${PWD}/fftw/linux-x86_64
+#   script:
+#     - echo "after script"
+#     - ./config Linux-x86_64-g++ --tcl-prefix $TCLDIR --charm-base $CHRMDIR --fftw-prefix ${FFTWDIR} --with-memopt
+#     - cd Linux-x86_64-g++
+#     - make
+   
+#   artifacts:
+#     paths:
+#       - Linux-x86_64-g++
+      
+# test_shared_memopt:
+#   # execute this job always, no matter if it is a push or a merge request
+#   <<: *only-remote
+#   stage: test
+#   image: gcc
+
+#   script:
+#     - echo "test"
+#     - cd Linux-x86_64-g++
+#     - ./namd3 src/alanin > alanin_cuda.log
+#   dependencies:
+#     - build_shared_memopt
+#   artifacts:
+#     paths:
+#       - Linux-x86_64-g++
+
+
+#######################     Local Testing      #################################
+
+#build_multicore_venezia:
+#   # execute this job always, no matter if it is a push or a merge request
+#   # This needs to be on top of everything   
+#  <<: *only-all
+#  stage: build
+#
+#  tags:
+#   # this is the name of the runner. Don't forget to add the builds_dir = "/ssd2/jribeiro/gitlabrunner/"
+#   # to the ~/.gitlab-runner/config.toml file
+#   - venezia
+#   
+#  # instead of calling g++ directly you can also use some build toolkit like make
+#  # install the necessary build tools when needed
+#  before_script:
+#    - export TCLDIR=/ssd2/jribeiro/gitlabrunner/tcl/tcl8.5.9-linux-x86_64
+#    - export CHRMDIR=/ssd2/jribeiro/gitlabrunner/charm-6.8.2
+#  script:
+#    - echo "after script"
+#    - ./config Linux-x86_64-g++ --tcl-prefix $TCLDIR --charm-base $CHRMDIR
+#    - cd Linux-x86_64-g++
+#    - make -j32
+#    
+#  artifacts:
+#    paths:
+#      - Linux-x86_64-g++
+#      # depending on your build setup it's most likely a good idea to cache outputs to reduce the build time
+#      # cache:
+#      #   paths:
+#      #     - "*.o"
+
+build_multicore_gaza:
+   # execute this job always, no matter if it is a push or a merge request
+   # This needs to be on top of everything   
+  <<: *only-all
+  stage: build
+
+  tags:
+   # this is the name of the runner. Don't forget to add the builds_dir = "/ssd2/jribeiro/gitlabrunner/"
+   # to the ~/.gitlab-runner/config.toml file
+   - gazaACB_namd
+  # instead of calling g++ directly you can also use some build toolkit like make
+  # install the necessary build tools when needed
+  before_script:
+
+    - export LD_LIBRARY_PATH=/usr/lib64:/usr/lib:$LD_LIBRARY_PATH
+    - export TCLDIR=/home/tcbdevel/runner/tcl/tcl8.6.13-linux-x86_64-threaded
+    - export CHRMDIR=/home/tcbdevel/runner/charm-v7.0.0
+    - export FFTWDIR=/home/tcbdevel/runner/fftw/linux-x86_64
+  script:
+    - echo "after script"
+    - ./config Linux-x86_64-g++ --tcl-prefix $TCLDIR --charm-base $CHRMDIR --fftw-prefix ${FFTWDIR}
+    - cd Linux-x86_64-g++
+    - make -j8
+
+    
+  artifacts:
+    paths:
+      - Linux-x86_64-g++
+
+#build_cuda:
+#   # execute this job always, no matter if it is a push or a merge request
+#  <<: *only-merge-requests
+#  stage: build
+#  
+#  tags:
+#    - venezia
+#    
+#  before_script:
+#    - export TCLDIR=/ssd2/jribeiro/gitlabrunner/tcl/tcl8.5.9-linux-x86_64
+#    - export CHRMDIR=/ssd2/jribeiro/gitlabrunner/charm-6.8.2
+#  
+#  script:
+#    - echo "after script"
+#    - ./config Linux-x86_64-g++ --with-cuda --tcl-prefix $TCLDIR --charm-base $CHRMDIR
+#    - cd Linux-x86_64-g++
+#    - make -j32
+#   
+#  artifacts:
+#    paths:
+#      - Linux-x86_64-g++
+  
+############################ TEST ############################
+
+# run tests using the binary built before
+# This one copies the uploads the artifact and downloads
+# to the new machine. In this case, the machine is the same as in the build
+# if the run fails, it returns a fail
+#test_multicore_venezia:
+#   # execute this job always, no matter if it is a push or a merge request
+# <<: *only-all
+#  stage: test
+#  tags:
+#    # If you don't place the tag here, it will run on a shared runner
+#    - venezia
+#
+# script:
+#    - echo "test"
+#   - cd Linux-x86_64-g++
+#    - ./namd3 +p32 src/alanin > alanin_multicore.log
+#  dependencies:
+#    - build_multicore_venezia
+#  artifacts:
+#    paths:
+#      - Linux-x86_64-g++
+
+test_multicore_gaza:
+   # execute this job always, no matter if it is a push or a merge request
+  <<: *only-all
+  stage: test
+  tags:
+    # If you don't place the tag here, it will run on a shared runner
+    - gazaACB_namd
+    
+  script:
+    - echo "test"
+    - cd Linux-x86_64-g++
+    - ./namd3 +p8 src/alanin > alanin_multicore.log
+  dependencies:
+    - build_multicore_gaza
+  artifacts:
+    paths:
+      - Linux-x86_64-g++
+      
+#test_cuda:
+#  # execute this job always, no matter if it is a push or a merge request
+#  <<: *only-merge-requests
+#  stage: test
+#  tags:
+#    # If you don't place the tag here, it will run on a shared runner
+#    - venezia
+#
+#  script:
+#    - echo "test"
+#    - cd Linux-x86_64-g++
+#    - ./namd3 +p32 src/alanin > alanin_cuda.log
+#  dependencies:
+#    - build_cuda
+#  artifacts:
+#  
+#    paths:
+#      - Linux-x86_64-g++

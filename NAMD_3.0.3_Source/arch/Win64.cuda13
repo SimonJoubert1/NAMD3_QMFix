@@ -1,0 +1,21 @@
+# suppliment and override build definitions for CUDA 13
+
+# set directory default for TCB file system, override in Make.config
+CUDADIR=/cygdrive/c/PROGRA~1/NVIDIA~2/CUDA/v13.1
+
+# XXX these should be picked up automatically by config
+# XXX must test!
+#LIBCUDARTSO=cudart64_91.dll
+#LIBCUFFTSO=cufft64_91.dll
+
+# CUDA 11 has deprecated compute capability 3.x and 5.x
+
+CUDAGENCODE = \
+  -gencode arch=compute_70,code=sm_70 \
+  -gencode arch=compute_75,code=sm_75 \
+  -gencode arch=compute_80,code=sm_80 \
+  -gencode arch=compute_80,code=compute_80 \
+  -gencode arch=compute_86,code=sm_86 \
+  -gencode arch=compute_89,code=sm_89 \
+  -gencode arch=compute_90,code=sm_90 \
+  -gencode arch=compute_90,code=compute_90

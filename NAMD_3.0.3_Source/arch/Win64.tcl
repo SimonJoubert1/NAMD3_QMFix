@@ -1,0 +1,16 @@
+
+TCLDIR = $(HOME)/tcl8.6.13-win64-threaded
+TCLINCL = -I$(TCLDIR)/include
+TCLLIB = -L$(TCLDIR)/lib -ltcl86t
+TCLDLL = tcl86t.dll
+ZLIBDLL = zlib1.dll
+TCLFLAGS = -DNAMD_TCL
+TCL = $(TCLINCL) $(TCLFLAGS)
+
+$(TCLSENTINEL)$(TCLDLL):
+	$(COPY) $(TCLDIR)/bin/$(TCLDLL) $(TCLDLL)
+
+$(TCLSENTINEL)$(ZLIBDLL):
+	$(COPY) $(TCLDIR)/bin/$(ZLIBDLL) $(ZLIBDLL)
+
+#TCLSENTINEL = not_$(TCLSENTIEL)
