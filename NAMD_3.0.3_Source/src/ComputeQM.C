@@ -4429,6 +4429,41 @@ void ComputeQMMgr::calcORCA(QMGrpCalcMsg *msg)
         // created to handle QM-MM bonds.
         for (size_t i=0; i < msg->numRealPntChrgs; i++, pcIndx++ ) {
             
+
+            // Experimental local subtraction follows the QM embedding switch.
+            // This does not alter charges on the global PME mesh.
+            const bool weightedPME = msg->switching;
+            BigReal weight = 1, weightDeriv = 0, pairEnergySum = 0;
+            int nearest = 0;
+            Vector nearVector(0);
+            BigReal nearDistance = 0;
+            if (weightedPME) {
+                if (!msg->switching || msg->switchType != QMPCSCALESWITCH ||
+                    msg->pcScheme != QMPCSCHEMENONE || msg->qmAtmChrgMode != QMCHRGNONE ||
+                    msg->numAllAtoms != msg->numQMAtoms ||
+                    msg->numAllPntChrgs != msg->numRealPntChrgs ||
+                    Node::Object()->molecule->get_numQMAtoms() != msg->numQMAtoms ||
+                    pcPpme[i].type != QMPCTYPE_CLASSICAL ||
+                    !(msg->swdist > 0 && msg->cutoff > msg->swdist))
+                    NAMD_die("Weighted PME test requires one uncapped region, fixed PSF charges, switching type switch, scheme none, real PCs");
+                for (int n=0; n<msg->numQMAtoms; ++n) {
+                    Vector dv = pcPpme[i].position - atmP[n].position;
+                    BigReal d = dv.length();
+                    if (n==0 || d < nearDistance) {
+                        nearDistance=d; nearest=n; nearVector=dv;
+                    }
+                }
+                if (fabs(nearDistance-pcPpme[i].dist)>1.e-5)
+                    NAMD_die("Weighted PME test: stored selection distance differs from current distance; use PC stride 1 and consistent images");
+                BigReal u=nearDistance*nearDistance;
+                BigReal aa=msg->swdist*msg->swdist, bb=msg->cutoff*msg->cutoff;
+                if (nearDistance>=msg->cutoff) weight=0;
+                else if (nearDistance>msg->swdist) {
+                    BigReal denom=(bb-aa)*(bb-aa)*(bb-aa);
+                    weight=(u-bb)*(u-bb)*(bb+2*u-3*aa)/denom;
+                    weightDeriv=12*nearDistance*(u-bb)*(u-aa)/denom;
+                }
+            }
             BigReal p_i_charge = pcPpme[i].charge;
             Position pos_i = pcPpme[i].position ;
             
@@ -4458,10 +4493,14 @@ void ComputeQMMgr::calcORCA(QMGrpCalcMsg *msg)
                 // Final force and energy correction for this pair of atoms.
                 BigReal energy = kq_i * p_j_charge * recip_energy ;
                 
-                fixForce += -1*p_j_charge*(recip_gradient/r)*(pos_i - pos_j) ;
+                Force pairForce = -weight*p_j_charge*(recip_gradient/r)*(pos_i - pos_j);
+                fixForce += pairForce;
+                // Reaction of the existing MM-side PME subtraction on the QM atom.
+                resForce[j].force += kq_i*pairForce;
                 
                 // The energy is *subtracted* from the total energy calculated here.
-                resMsg->energyCorr -= energy;
+                pairEnergySum += energy;
+                resMsg->energyCorr -= weight*energy;
                 
             }
             
@@ -4471,6 +4510,14 @@ void ComputeQMMgr::calcORCA(QMGrpCalcMsg *msg)
 //                     << std::endl);
 //                 DebugM(4,"Force correction: " << fixForce << std::endl);
             resForce[pcIndx].force -= kq_i*fixForce ;
+            if (weightedPME) {
+                Force switchForce(0);
+                if (weightDeriv != 0)
+                    switchForce = (pairEnergySum*weightDeriv/nearDistance)*nearVector;
+                resForce[pcIndx].force += switchForce;
+                resForce[nearest].force -= switchForce;
+            }
+
         }
         
     }
